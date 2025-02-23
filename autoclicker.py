@@ -11,14 +11,18 @@ import sys
 import subprocess
 import os
 import requests
-import hashlib  # For comparing script content
-import webbrowser  # For opening GitHub link in About dialog
+import hashlib
+import re
+import random
+import webbrowser
+
+__version__ = "1.0"
 
 class MacroRecorder:
     def __init__(self, root):
         self.root = root
-        self.root.title("Macro Recorder")  # Removed version number from the title
-        self.root.geometry("320x300")  # Adjusted window size
+        self.root.title("Macro Recorder")
+        self.root.geometry("320x300")
         self.root.resizable(False, False)
         self.root.attributes('-topmost', True)
 
@@ -208,23 +212,20 @@ class MacroRecorder:
         self.playing = False
         self.play_button.config(text="Play/Pause (F5)", bg='green')
 
+    def normalize_line_endings(self, content):
+        return re.sub(rb'\r\n?', b'\n', content)
+
     def check_for_updates(self):
-        script_url = "https://raw.githubusercontent.com/V4mpw0L/MacroRecorder/main/autoclicker.py"
+        version_url = f"https://raw.githubusercontent.com/V4mpw0L/MacroRecorder/main/version.txt?nocache={random.randint(1,100000)}"
         try:
-            response = requests.get(script_url, timeout=10)
+            response = requests.get(version_url, timeout=5)
             if response.status_code == 200:
-                remote_script = response.content
-                with open(__file__, 'rb') as f:
-                    local_script = f.read()
-
-                remote_hash = hashlib.sha256(remote_script).hexdigest()
-                local_hash = hashlib.sha256(local_script).hexdigest()
-
-                if remote_hash != local_hash:
+                online_version = response.text.strip()
+                if online_version != __version__:
                     update = messagebox.askyesno("Update Available",
-                                                 "A new version is available.\nWould you like to update?")
+                                                 f"A new version ({online_version}) is available.\nWould you like to update?")
                     if update:
-                        self.perform_update(remote_script)
+                        self.perform_update()
                 else:
                     messagebox.showinfo("No Update", "You are using the latest version.")
             else:
@@ -232,16 +233,22 @@ class MacroRecorder:
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred while checking for updates:\n{e}")
 
-    def perform_update(self, remote_script):
+    def perform_update(self):
+        script_url = f"https://raw.githubusercontent.com/V4mpw0L/MacroRecorder/main/autoclicker.py?nocache={random.randint(1,100000)}"
         try:
-            script_path = os.path.abspath(__file__)
-            if os.access(script_path, os.W_OK):
-                with open(script_path, 'wb') as f:
-                    f.write(remote_script)
-                messagebox.showinfo("Update Successful", "The application has been updated. Please restart.")
-                sys.exit()
+            response = requests.get(script_url, timeout=10)
+            if response.status_code == 200:
+                remote_script = response.content
+                script_path = os.path.abspath(__file__)
+                if os.access(script_path, os.W_OK):
+                    with open(script_path, 'wb') as f:
+                        f.write(remote_script)
+                    messagebox.showinfo("Update Successful", "The application has been updated. Please restart.")
+                    sys.exit()
+                else:
+                    messagebox.showerror("Error", "No write permission to update the script file. Please run the application with appropriate permissions.")
             else:
-                messagebox.showerror("Error", "No write permission to update the script file. Please run the application with appropriate permissions.")
+                messagebox.showerror("Error", "Failed to download the update.")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred during the update:\n{e}")
 
@@ -259,7 +266,7 @@ class MacroRecorder:
         about_window.geometry(f"+{x}+{y}")
 
         # Labels
-        tk.Label(about_window, text="Macro Recorder", font=('Helvetica', 12, 'bold')).pack(pady=10)
+        tk.Label(about_window, text=f"Macro Recorder v{__version__}", font=('Helvetica', 12, 'bold')).pack(pady=10)
         tk.Label(about_window, text="Created by V4mpw0L").pack(pady=5)
 
         # GitHub Link
