@@ -14,7 +14,7 @@ import requests
 
 class MacroRecorder:
     def __init__(self, root):
-        self.current_version = "1.1"
+        self.current_version = "1.0"
 
         self.root = root
         self.root.title(f"Macro Recorder v{self.current_version}")  # Display version in title bar
