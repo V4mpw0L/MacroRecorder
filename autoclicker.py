@@ -10,11 +10,11 @@ import pickle
 import sys
 import subprocess
 import os
-import requests  # For checking updates
+import requests
 
 class MacroRecorder:
     def __init__(self, root):
-        self.current_version = "1.0"  # Update this version number when releasing a new version.
+        self.current_version = "1.1"  # Update this version number when releasing a new version.
 
         self.root = root
         self.root.title(f"Macro Recorder v{self.current_version}")  # Display version in title bar
