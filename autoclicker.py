@@ -10,11 +10,11 @@ import pickle
 import sys
 import subprocess
 import os
-import requests 
+import requests  # For checking updates
 
 class MacroRecorder:
     def __init__(self, root):
-        self.current_version = "1.0"
+        self.current_version = "1.0"  # Update this version number when releasing a new version.
 
         self.root = root
         self.root.title(f"Macro Recorder v{self.current_version}")  # Display version in title bar
@@ -218,11 +218,15 @@ class MacroRecorder:
         try:
             response = requests.get(script_url, timeout=10)
             if response.status_code == 200:
-                script_path = os.path.realpath(__file__)
-                with open(script_path, 'wb') as f:
-                    f.write(response.content)
-                messagebox.showinfo("Update Successful", "The application has been updated. Please restart.")
-                sys.exit()
+                script_path = os.path.abspath(__file__)
+                # Ensure we have permission to write to the script file
+                if os.access(script_path, os.W_OK):
+                    with open(script_path, 'wb') as f:
+                        f.write(response.content)
+                    messagebox.showinfo("Update Successful", "The application has been updated to the latest version. Please restart the application.")
+                    sys.exit()
+                else:
+                    messagebox.showerror("Error", "No write permission to update the script file. Please run the application with appropriate permissions.")
             else:
                 messagebox.showerror("Error", "Failed to download the update.")
         except Exception as e:
