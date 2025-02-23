@@ -10,15 +10,15 @@ import pickle
 import sys
 import subprocess
 import os
-import requests
+import requests  # For checking updates
 
 class MacroRecorder:
     def __init__(self, root):
-        self.current_version = "1.1"  # Update this version number when releasing a new version.
+        self.current_version = "1.0"  # Update this version number when releasing a new version.
 
         self.root = root
         self.root.title(f"Macro Recorder v{self.current_version}")  # Display version in title bar
-        self.root.geometry("300x200")
+        self.root.geometry("320x350")  # Adjusted window size for vertical layout
         self.root.resizable(False, False)
         self.root.attributes('-topmost', True)
 
@@ -47,43 +47,57 @@ class MacroRecorder:
 
         self.help_menu = tk.Menu(self.menubar, tearoff=0)
         self.help_menu.add_command(label="Check for Updates", command=self.check_for_updates)
+        self.help_menu.add_command(label="About", command=self.show_about)
         self.menubar.add_cascade(label="Help", menu=self.help_menu)
 
         self.root.config(menu=self.menubar)
 
         # Main Frame
         main_frame = tk.Frame(self.root)
-        main_frame.pack(pady=5)
+        main_frame.pack(pady=20)
+
+        button_width = 25  # Adjusted button width
+        button_height = 2
 
         # Record Button
-        self.record_button = tk.Button(main_frame, text="Record (F6)", command=self.toggle_recording,
-                                       bg='red', fg='white', font=('Helvetica', 10, 'bold'), width=15, height=2)
-        self.record_button.grid(row=0, column=0, padx=5, pady=5)
+        self.record_button = tk.Button(
+            main_frame, text="Record (F6)", command=self.toggle_recording,
+            bg='red', fg='white', font=('Helvetica', 12, 'bold'),
+            width=button_width, height=button_height
+        )
+        self.record_button.pack(pady=10)
 
         # Play Button
-        self.play_button = tk.Button(main_frame, text="Play/Pause (F5)", command=self.toggle_playing,
-                                     bg='green', fg='white', font=('Helvetica', 10, 'bold'), width=15, height=2)
-        self.play_button.grid(row=0, column=1, padx=5, pady=5)
+        self.play_button = tk.Button(
+            main_frame, text="Play/Pause (F5)", command=self.toggle_playing,
+            bg='green', fg='white', font=('Helvetica', 12, 'bold'),
+            width=button_width, height=button_height
+        )
+        self.play_button.pack(pady=10)
 
         # Controls Frame
         controls_frame = tk.Frame(self.root)
-        controls_frame.pack(pady=5)
+        controls_frame.pack(pady=10)
 
         self.loop_label = tk.Label(controls_frame, text="Loop Count:")
         self.loop_label.grid(row=0, column=0, padx=5)
-        self.loop_entry = tk.Entry(controls_frame, width=5)
+        self.loop_entry = tk.Entry(controls_frame, width=10)
         self.loop_entry.insert(0, "1")  # Default value
         self.loop_entry.grid(row=0, column=1, padx=5)
 
         self.loop_infinite_var = tk.BooleanVar()
-        self.loop_infinite_check = tk.Checkbutton(controls_frame, text="Loop Infinite",
-                                                  variable=self.loop_infinite_var, command=self.toggle_loop_infinite)
-        self.loop_infinite_check.grid(row=0, column=2, padx=5)
+        self.loop_infinite_check = tk.Checkbutton(
+            controls_frame, text="Loop Infinite",
+            variable=self.loop_infinite_var, command=self.toggle_loop_infinite
+        )
+        self.loop_infinite_check.grid(row=1, column=0, columnspan=2, pady=5)
 
         # Update Button
-        self.update_button = tk.Button(self.root, text="Check for Updates", command=self.check_for_updates,
-                                       font=('Helvetica', 9))
-        self.update_button.pack(pady=5)
+        self.update_button = tk.Button(
+            self.root, text="Check for Updates", command=self.check_for_updates,
+            font=('Helvetica', 10)
+        )
+        self.update_button.pack(pady=10)
 
     def toggle_recording(self):
         self.recording = not self.recording
@@ -91,9 +105,9 @@ class MacroRecorder:
             self.events = []
             self.start_time = time()  # Start time of recording
             self.last_time = self.start_time  # Time of the last event
-            self.record_button.config(text="Stop Recording (F6)", bg='orange', width=20)
+            self.record_button.config(text="Stop Recording (F6)", bg='orange')
         else:
-            self.record_button.config(text="Record (F6)", bg='red', width=15)
+            self.record_button.config(text="Record (F6)", bg='red')
 
     def toggle_playing(self):
         if not self.playing:
@@ -101,11 +115,11 @@ class MacroRecorder:
                 messagebox.showwarning("No Events", "No recorded events to play.")
                 return
             self.playing = True
-            self.play_button.config(text="Pause Playback (F5)", bg='orange', width=20)
+            self.play_button.config(text="Pause Playback (F5)", bg='orange')
             threading.Thread(target=self.play_events).start()
         else:
             self.playing = False
-            self.play_button.config(text="Play/Pause (F5)", bg='green', width=15)
+            self.play_button.config(text="Play/Pause (F5)", bg='green')
 
     def toggle_loop_infinite(self):
         self.loop_infinite = self.loop_infinite_var.get()
@@ -156,7 +170,7 @@ class MacroRecorder:
         if not self.events:
             messagebox.showwarning("No Events", "No recorded events to play.")
             self.playing = False
-            self.play_button.config(text="Play/Pause (F5)", bg='green', width=15)
+            self.play_button.config(text="Play/Pause (F5)", bg='green')
             return
 
         try:
@@ -192,7 +206,7 @@ class MacroRecorder:
                 count += 1
 
         self.playing = False
-        self.play_button.config(text="Play/Pause (F5)", bg='green', width=15)
+        self.play_button.config(text="Play/Pause (F5)", bg='green')
 
     def check_for_updates(self):
         version_url = "https://raw.githubusercontent.com/V4mpw0L/MacroRecorder/main/version.txt"
@@ -219,7 +233,6 @@ class MacroRecorder:
             response = requests.get(script_url, timeout=10)
             if response.status_code == 200:
                 script_path = os.path.abspath(__file__)
-                # Ensure we have permission to write to the script file
                 if os.access(script_path, os.W_OK):
                     with open(script_path, 'wb') as f:
                         f.write(response.content)
@@ -231,6 +244,37 @@ class MacroRecorder:
                 messagebox.showerror("Error", "Failed to download the update.")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred during the update:\n{e}")
+
+    def show_about(self):
+        # Create a custom About window
+        about_window = tk.Toplevel(self.root)
+        about_window.title("About Macro Recorder")
+        about_window.resizable(False, False)
+        about_window.geometry("400x200")
+
+        # Ensure the About window is on top of the main window
+        about_window.attributes('-topmost', True)
+
+        # Center the window relative to the parent window
+        x = self.root.winfo_x() + (self.root.winfo_width() - 400) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - 200) // 2
+        about_window.geometry(f"+{x}+{y}")
+
+        # Labels
+        tk.Label(about_window, text=f"Macro Recorder v{self.current_version}", font=('Helvetica', 12, 'bold')).pack(pady=10)
+        tk.Label(about_window, text="Created by V4mpw0L").pack(pady=5)
+
+        # GitHub Link
+        link = tk.Label(about_window, text="GitHub Repository", fg="blue", cursor="hand2")
+        link.pack(pady=5)
+        link.bind("<Button-1>", lambda e: self.open_github())
+
+        # Close Button
+        tk.Button(about_window, text="Close", command=about_window.destroy).pack(pady=10)
+
+    def open_github(self):
+        import webbrowser
+        webbrowser.open("https://github.com/V4mpw0L/MacroRecorder")
 
 if __name__ == "__main__":
     # Check for required packages
