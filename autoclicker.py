@@ -10,7 +10,7 @@ import pickle
 import sys
 import subprocess
 import os
-import requests  # For checking updates
+import requests 
 
 class MacroRecorder:
     def __init__(self, root):
