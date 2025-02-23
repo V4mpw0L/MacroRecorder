@@ -10,15 +10,15 @@ import pickle
 import sys
 import subprocess
 import os
-import requests  # For checking updates
+import requests
+import hashlib  # For comparing script content
+import webbrowser  # For opening GitHub link in About dialog
 
 class MacroRecorder:
     def __init__(self, root):
-        self.current_version = "1.0"  # Update this version number when releasing a new version.
-
         self.root = root
-        self.root.title(f"Macro Recorder v{self.current_version}")  # Display version in title bar
-        self.root.geometry("320x350")  # Adjusted window size for vertical layout
+        self.root.title("Macro Recorder")  # Removed version number from the title
+        self.root.geometry("320x300")  # Adjusted window size
         self.root.resizable(False, False)
         self.root.attributes('-topmost', True)
 
@@ -38,25 +38,25 @@ class MacroRecorder:
     def create_widgets(self):
         # Menu Bar
         self.menubar = tk.Menu(self.root)
+        # File Menu
         self.file_menu = tk.Menu(self.menubar, tearoff=0)
         self.file_menu.add_command(label="Save Script", command=self.save_script)
         self.file_menu.add_command(label="Load Script", command=self.load_script)
         self.file_menu.add_separator()
         self.file_menu.add_command(label="Exit", command=self.root.quit)
         self.menubar.add_cascade(label="File", menu=self.file_menu)
-
+        # Help Menu
         self.help_menu = tk.Menu(self.menubar, tearoff=0)
-        self.help_menu.add_command(label="Check for Updates", command=self.check_for_updates)
         self.help_menu.add_command(label="About", command=self.show_about)
         self.menubar.add_cascade(label="Help", menu=self.help_menu)
-
+        # Configure Menu Bar
         self.root.config(menu=self.menubar)
 
         # Main Frame
         main_frame = tk.Frame(self.root)
-        main_frame.pack(pady=20)
+        main_frame.pack(pady=10)
 
-        button_width = 25  # Adjusted button width
+        button_width = 25
         button_height = 2
 
         # Record Button
@@ -65,7 +65,7 @@ class MacroRecorder:
             bg='red', fg='white', font=('Helvetica', 12, 'bold'),
             width=button_width, height=button_height
         )
-        self.record_button.pack(pady=10)
+        self.record_button.pack(pady=5)
 
         # Play Button
         self.play_button = tk.Button(
@@ -73,17 +73,17 @@ class MacroRecorder:
             bg='green', fg='white', font=('Helvetica', 12, 'bold'),
             width=button_width, height=button_height
         )
-        self.play_button.pack(pady=10)
+        self.play_button.pack(pady=5)
 
         # Controls Frame
         controls_frame = tk.Frame(self.root)
-        controls_frame.pack(pady=10)
+        controls_frame.pack(pady=5)
 
         self.loop_label = tk.Label(controls_frame, text="Loop Count:")
-        self.loop_label.grid(row=0, column=0, padx=5)
+        self.loop_label.grid(row=0, column=0, padx=5, pady=5)
         self.loop_entry = tk.Entry(controls_frame, width=10)
         self.loop_entry.insert(0, "1")  # Default value
-        self.loop_entry.grid(row=0, column=1, padx=5)
+        self.loop_entry.grid(row=0, column=1, padx=5, pady=5)
 
         self.loop_infinite_var = tk.BooleanVar()
         self.loop_infinite_check = tk.Checkbutton(
@@ -97,7 +97,7 @@ class MacroRecorder:
             self.root, text="Check for Updates", command=self.check_for_updates,
             font=('Helvetica', 10)
         )
-        self.update_button.pack(pady=10)
+        self.update_button.pack(pady=5)
 
     def toggle_recording(self):
         self.recording = not self.recording
@@ -209,17 +209,22 @@ class MacroRecorder:
         self.play_button.config(text="Play/Pause (F5)", bg='green')
 
     def check_for_updates(self):
-        version_url = "https://raw.githubusercontent.com/V4mpw0L/MacroRecorder/main/version.txt"
+        script_url = "https://raw.githubusercontent.com/V4mpw0L/MacroRecorder/main/autoclicker.py"
         try:
-            response = requests.get(version_url, timeout=5)
+            response = requests.get(script_url, timeout=10)
             if response.status_code == 200:
-                online_version = response.text.strip()
-                if online_version != self.current_version:
+                remote_script = response.content
+                with open(__file__, 'rb') as f:
+                    local_script = f.read()
+
+                remote_hash = hashlib.sha256(remote_script).hexdigest()
+                local_hash = hashlib.sha256(local_script).hexdigest()
+
+                if remote_hash != local_hash:
                     update = messagebox.askyesno("Update Available",
-                                                 f"A new version ({online_version}) is available.\n"
-                                                 f"Would you like to update?")
+                                                 "A new version is available.\nWould you like to update?")
                     if update:
-                        self.perform_update()
+                        self.perform_update(remote_script)
                 else:
                     messagebox.showinfo("No Update", "You are using the latest version.")
             else:
@@ -227,21 +232,16 @@ class MacroRecorder:
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred while checking for updates:\n{e}")
 
-    def perform_update(self):
-        script_url = "https://raw.githubusercontent.com/V4mpw0L/MacroRecorder/main/autoclicker.py"
+    def perform_update(self, remote_script):
         try:
-            response = requests.get(script_url, timeout=10)
-            if response.status_code == 200:
-                script_path = os.path.abspath(__file__)
-                if os.access(script_path, os.W_OK):
-                    with open(script_path, 'wb') as f:
-                        f.write(response.content)
-                    messagebox.showinfo("Update Successful", "The application has been updated to the latest version. Please restart the application.")
-                    sys.exit()
-                else:
-                    messagebox.showerror("Error", "No write permission to update the script file. Please run the application with appropriate permissions.")
+            script_path = os.path.abspath(__file__)
+            if os.access(script_path, os.W_OK):
+                with open(script_path, 'wb') as f:
+                    f.write(remote_script)
+                messagebox.showinfo("Update Successful", "The application has been updated. Please restart.")
+                sys.exit()
             else:
-                messagebox.showerror("Error", "Failed to download the update.")
+                messagebox.showerror("Error", "No write permission to update the script file. Please run the application with appropriate permissions.")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred during the update:\n{e}")
 
@@ -251,8 +251,6 @@ class MacroRecorder:
         about_window.title("About Macro Recorder")
         about_window.resizable(False, False)
         about_window.geometry("400x200")
-
-        # Ensure the About window is on top of the main window
         about_window.attributes('-topmost', True)
 
         # Center the window relative to the parent window
@@ -261,20 +259,16 @@ class MacroRecorder:
         about_window.geometry(f"+{x}+{y}")
 
         # Labels
-        tk.Label(about_window, text=f"Macro Recorder v{self.current_version}", font=('Helvetica', 12, 'bold')).pack(pady=10)
+        tk.Label(about_window, text="Macro Recorder", font=('Helvetica', 12, 'bold')).pack(pady=10)
         tk.Label(about_window, text="Created by V4mpw0L").pack(pady=5)
 
         # GitHub Link
         link = tk.Label(about_window, text="GitHub Repository", fg="blue", cursor="hand2")
         link.pack(pady=5)
-        link.bind("<Button-1>", lambda e: self.open_github())
+        link.bind("<Button-1>", lambda e: webbrowser.open("https://github.com/V4mpw0L/MacroRecorder"))
 
         # Close Button
         tk.Button(about_window, text="Close", command=about_window.destroy).pack(pady=10)
-
-    def open_github(self):
-        import webbrowser
-        webbrowser.open("https://github.com/V4mpw0L/MacroRecorder")
 
 if __name__ == "__main__":
     # Check for required packages
