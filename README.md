@@ -97,7 +97,7 @@ Click the Check for Updates button to see if a new version is available. If an u
 
 ## Screenshots
 
-*![Image](https://github.com/user-attachments/assets/f777b39d-b612-4128-b280-6db3a04ada10)*
+*![Image](https://github.com/user-attachments/assets/ae40e8d0-c6d9-4f5e-9ed1-2c03b3ac3f48)*
 
 ## Troubleshooting
 
