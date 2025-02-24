@@ -11,18 +11,21 @@ import sys
 import subprocess
 import os
 import requests
-import hashlib
-import re
 import random
 import webbrowser
+import logging
 
 __version__ = "1.0"
+
+# Configure logging
+logging.basicConfig(filename='macro_recorder.log', level=logging.DEBUG,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 class MacroRecorder:
     def __init__(self, root):
         self.root = root
         self.root.title("Macro Recorder")
-        self.root.geometry("320x340")  # Adjusted window height
+        self.root.geometry("230x200")
         self.root.resizable(False, False)
         self.root.attributes('-topmost', True)
 
@@ -30,12 +33,14 @@ class MacroRecorder:
         self.playing = False
         self.events = []
         self.loop_infinite = False
+        self.mouse_move_interval = 0.1
+        self.last_mouse_position = None
 
         self.style = ttk.Style()
-        self.theme = 'light'  # Default theme
+        self.theme = 'light'  
 
         self.create_widgets()
-        self.apply_light_theme()  # Apply default theme
+        self.apply_light_theme() 
 
         self.mouse_listener = mouse.Listener(on_click=self.on_click, on_move=self.on_move)
         self.keyboard_listener = keyboard.Listener(on_press=self.on_press)
@@ -67,7 +72,7 @@ class MacroRecorder:
 
         # Main Frame
         self.main_frame = ttk.Frame(self.root)
-        self.main_frame.pack(pady=10)
+        self.main_frame.pack(pady=5) 
 
         button_width = 20
 
@@ -76,44 +81,44 @@ class MacroRecorder:
             self.main_frame, text="Record (F6)", command=self.toggle_recording,
             width=button_width, style='Record.TButton'
         )
-        self.record_button.pack(pady=5)
+        self.record_button.pack(pady=3)
 
         # Play Button
         self.play_button = ttk.Button(
             self.main_frame, text="Play/Pause (F5)", command=self.toggle_playing,
             width=button_width, style='Play.TButton'
         )
-        self.play_button.pack(pady=5)
+        self.play_button.pack(pady=3)
 
         # Controls Frame
         self.controls_frame = ttk.Frame(self.root)
-        self.controls_frame.pack(pady=10)
+        self.controls_frame.pack(pady=5)
 
         self.loop_label = ttk.Label(self.controls_frame, text="Loop Count:")
-        self.loop_label.grid(row=0, column=0, padx=5, pady=5)
+        self.loop_label.grid(row=0, column=0, padx=3, pady=3)
         self.loop_entry = ttk.Entry(self.controls_frame, width=5, justify='center')
-        self.loop_entry.insert(0, "1")  # Default value
-        self.loop_entry.grid(row=0, column=1, padx=5, pady=5)
+        self.loop_entry.insert(0, "1")
+        self.loop_entry.grid(row=0, column=1, padx=3, pady=3)
 
         self.loop_infinite_var = tk.BooleanVar()
         self.loop_infinite_check = ttk.Checkbutton(
             self.controls_frame, text="Loop Infinite",
             variable=self.loop_infinite_var, command=self.toggle_loop_infinite
         )
-        self.loop_infinite_check.grid(row=1, column=0, columnspan=2, pady=5)
+        self.loop_infinite_check.grid(row=1, column=0, columnspan=2, pady=3)
 
         # Update Button
         self.update_button = ttk.Button(
             self.root, text="Check for Updates", command=self.check_for_updates,
             width=button_width, style='Update.TButton'
         )
-        self.update_button.pack(pady=10)
+        self.update_button.pack(pady=5)
 
     def apply_light_theme(self):
         self.theme = 'light'
         # Light theme colors
-        self.bg_color = '#f0f0f0'        # Light background
-        self.fg_color = '#000000'        # Black text
+        self.bg_color = '#f0f0f0'
+        self.fg_color = '#000000'
         self.entry_bg = '#ffffff'
         self.entry_fg = '#000000'
         self.menu_bg = '#f0f0f0'
@@ -121,17 +126,17 @@ class MacroRecorder:
         self.link_color = 'blue'
 
         # Set button colors
-        self.record_button_color = '#ff4d4d'  # Red
-        self.play_button_color = '#32cd32'    # Green
-        self.update_button_color = '#0078d7'  # Blue
+        self.record_button_color = '#ff4d4d'
+        self.play_button_color = '#32cd32'
+        self.update_button_color = '#0078d7'
 
         self.update_styles()
 
     def apply_dark_theme(self):
         self.theme = 'dark'
         # Dark theme colors
-        self.bg_color = '#2e2e2e'        # Dark background
-        self.fg_color = '#ffffff'        # White text
+        self.bg_color = '#2e2e2e'
+        self.fg_color = '#ffffff'
         self.entry_bg = '#3e3e3e'
         self.entry_fg = '#ffffff'
         self.menu_bg = '#2e2e2e'
@@ -139,9 +144,9 @@ class MacroRecorder:
         self.link_color = 'cyan'
 
         # Set button colors
-        self.record_button_color = '#ff4d4d'  # Red
-        self.play_button_color = '#32cd32'    # Green
-        self.update_button_color = '#1a73e8'  # Blue
+        self.record_button_color = '#ff4d4d'
+        self.play_button_color = '#32cd32'
+        self.update_button_color = '#1a73e8'
 
         self.update_styles()
 
@@ -185,7 +190,7 @@ class MacroRecorder:
                     widget.configure(background=self.bg_color, foreground=self.fg_color)
                 elif isinstance(widget, ttk.Button):
                     widget.configure(style='TButton')
-                elif isinstance(widget, tk.Label):  # For the link
+                elif isinstance(widget, tk.Label):
                     widget.configure(background=self.bg_color, foreground=self.link_color)
 
     def toggle_recording(self):
@@ -195,8 +200,10 @@ class MacroRecorder:
             self.start_time = time()
             self.last_time = self.start_time
             self.record_button.config(text="Stop Recording (F6)")
+            logging.info("Recording started")
         else:
             self.record_button.config(text="Record (F6)")
+            logging.info("Recording stopped")
 
     def toggle_playing(self):
         if not self.playing:
@@ -206,9 +213,11 @@ class MacroRecorder:
             self.playing = True
             self.play_button.config(text="Pause Playback (F5)")
             threading.Thread(target=self.play_events).start()
+            logging.info("Playback started")
         else:
             self.playing = False
             self.play_button.config(text="Play/Pause (F5)")
+            logging.info("Playback paused")
 
     def toggle_loop_infinite(self):
         self.loop_infinite = self.loop_infinite_var.get()
@@ -221,16 +230,26 @@ class MacroRecorder:
         file_path = filedialog.asksaveasfilename(defaultextension=".pkl",
                                                  filetypes=[("Macro Script Files", "*.pkl")])
         if file_path:
-            with open(file_path, "wb") as f:
-                pickle.dump(self.events, f)
-            messagebox.showinfo("Success", "Script saved successfully!")
+            try:
+                with open(file_path, "wb") as f:
+                    pickle.dump(self.events, f)
+                messagebox.showinfo("Success", "Script saved successfully!")
+                logging.info(f"Script saved to {file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save script:\n{e}")
+                logging.error(f"Failed to save script: {e}")
 
     def load_script(self):
         file_path = filedialog.askopenfilename(filetypes=[("Macro Script Files", "*.pkl")])
         if file_path:
-            with open(file_path, "rb") as f:
-                self.events = pickle.load(f)
-            messagebox.showinfo("Success", "Script loaded successfully!")
+            try:
+                with open(file_path, "rb") as f:
+                    self.events = pickle.load(f)
+                messagebox.showinfo("Success", "Script loaded successfully!")
+                logging.info(f"Script loaded from {file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to load script:\n{e}")
+                logging.error(f"Failed to load script: {e}")
 
     def on_click(self, x, y, button, pressed):
         if self.recording:
@@ -252,6 +271,12 @@ class MacroRecorder:
                 self.toggle_recording()
             elif key == keyboard.Key.f5:
                 self.toggle_playing()
+            elif self.recording:
+                current_time = time()
+                delay = current_time - self.last_time
+                self.last_time = current_time
+                self.events.append(("key_press", key, delay))
+                logging.debug(f"Recorded key press: {key}, delay={delay}")
         except AttributeError:
             pass
 
@@ -280,7 +305,7 @@ class MacroRecorder:
             for event in self.events:
                 if not self.playing:
                     break
-                sleep(event[-1])  # Delay before the event
+                sleep(event[-1])
                 if event[0] == "click":
                     x, y, button, pressed = event[1], event[2], event[3], event[4]
                     mouse.Controller().position = (x, y)
@@ -296,9 +321,6 @@ class MacroRecorder:
 
         self.playing = False
         self.play_button.config(text="Play/Pause (F5)")
-
-    def normalize_line_endings(self, content):
-        return re.sub(rb'\r\n?', b'\n', content)
 
     def check_for_updates(self):
         version_url = f"https://raw.githubusercontent.com/V4mpw0L/MacroRecorder/main/version.txt?nocache={random.randint(1,100000)}"
@@ -317,6 +339,7 @@ class MacroRecorder:
                 messagebox.showerror("Error", "Unable to check for updates.")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred while checking for updates:\n{e}")
+            logging.error(f"Error checking for updates: {e}")
 
     def perform_update(self):
         script_url = f"https://raw.githubusercontent.com/V4mpw0L/MacroRecorder/main/autoclicker.py?nocache={random.randint(1,100000)}"
@@ -329,20 +352,24 @@ class MacroRecorder:
                     with open(script_path, 'wb') as f:
                         f.write(remote_script)
                     messagebox.showinfo("Update Successful", "The application has been updated. Please restart.")
+                    logging.info("Application updated successfully")
                     sys.exit()
                 else:
                     messagebox.showerror("Error", "No write permission to update the script file. Please run the application with appropriate permissions.")
+                    logging.error("No write permission to update script")
             else:
                 messagebox.showerror("Error", "Failed to download the update.")
+                logging.error("Failed to download update")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred during the update:\n{e}")
+            logging.error(f"Error during update: {e}")
 
     def show_about(self):
         # Create a custom About window
         self.about_window = tk.Toplevel(self.root)
-        self.about_window.title("About Macro Recorder")
+        self.about_window.title("About")
         self.about_window.resizable(False, False)
-        self.about_window.geometry("400x200")
+        self.about_window.geometry("200x150")
         self.about_window.attributes('-topmost', True)
 
         # Apply theme to the About window
