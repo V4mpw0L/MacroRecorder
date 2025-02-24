@@ -25,7 +25,7 @@ class MacroRecorder:
     def __init__(self, root):
         self.root = root
         self.root.title("Macro Recorder")
-        self.root.geometry("200x200")
+        self.root.geometry("200x250")
         self.root.resizable(False, False)
         self.root.attributes('-topmost', True)
 
@@ -94,6 +94,7 @@ class MacroRecorder:
         self.controls_frame = ttk.Frame(self.root)
         self.controls_frame.pack(pady=5)
 
+        # Loop controls
         self.loop_label = ttk.Label(self.controls_frame, text="Loop Count:")
         self.loop_label.grid(row=0, column=0, padx=3, pady=3)
         self.loop_entry = ttk.Entry(self.controls_frame, width=5, justify='center')
@@ -105,7 +106,18 @@ class MacroRecorder:
             self.controls_frame, text="Loop Infinite",
             variable=self.loop_infinite_var, command=self.toggle_loop_infinite
         )
-        self.loop_infinite_check.grid(row=1, column=0, columnspan=2, pady=3)
+        self.loop_infinite_check.grid(row=2, column=0, padx=3, pady=3)
+
+        # Speed controls
+        self.speed_label = ttk.Label(self.controls_frame, text="Speed:")
+        self.speed_label.grid(row=1, column=0, padx=3, pady=3)
+        self.speed_var = tk.StringVar()
+        self.speed_var.set("1.0")
+        self.speed_dropdown = ttk.Combobox(
+            self.controls_frame, textvariable=self.speed_var,
+            values=["0.1","0.5", "1.0", "1.5", "2.0", "2.5", "3.0"], state="readonly", width=5
+        )
+        self.speed_dropdown.grid(row=1, column=1, padx=3, pady=3, sticky=tk.W)
 
         # Update Button
         self.update_button = ttk.Button(
@@ -288,6 +300,14 @@ class MacroRecorder:
             return
 
         try:
+            speed_factor = float(self.speed_var.get())
+            if speed_factor <= 0:
+                raise ValueError("Speed factor must be positive")
+        except ValueError:
+            messagebox.showerror("Invalid Speed", "Please select a valid speed factor.")
+            return
+
+        try:
             if self.loop_infinite:
                 loop_count = float('inf')
             else:
@@ -305,7 +325,8 @@ class MacroRecorder:
             for event in self.events:
                 if not self.playing:
                     break
-                sleep(event[-1])
+                adjusted_delay = event[-1] / speed_factor
+                sleep(adjusted_delay)
                 if event[0] == "click":
                     x, y, button, pressed = event[1], event[2], event[3], event[4]
                     mouse.Controller().position = (x, y)
