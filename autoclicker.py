@@ -25,7 +25,7 @@ class MacroRecorder:
     def __init__(self, root):
         self.root = root
         self.root.title("Macro Recorder")
-        self.root.geometry("230x200")
+        self.root.geometry("200x200")
         self.root.resizable(False, False)
         self.root.attributes('-topmost', True)
 
@@ -33,7 +33,7 @@ class MacroRecorder:
         self.playing = False
         self.events = []
         self.loop_infinite = False
-        self.mouse_move_interval = 0.1
+        self.mouse_move_interval = 0.2
         self.last_mouse_position = None
 
         self.style = ttk.Style()
@@ -74,7 +74,7 @@ class MacroRecorder:
         self.main_frame = ttk.Frame(self.root)
         self.main_frame.pack(pady=5) 
 
-        button_width = 20
+        button_width = 15
 
         # Record Button
         self.record_button = ttk.Button(
