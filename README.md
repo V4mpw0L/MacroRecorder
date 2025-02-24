@@ -23,7 +23,7 @@ A powerful and user-friendly macro recorder for Ubuntu Linux and Windows that ca
 * **Enhanced UI Features:**
   - Light/Dark theme support
   - Color-coded status indicators
-  - Compact responsive design (220x280px)
+  - Compact responsive design (220x250px)
 * **Security & Maintenance:**
   - Config file encryption
   - Auto-update system
