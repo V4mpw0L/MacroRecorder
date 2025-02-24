@@ -101,7 +101,7 @@ Click the Check for Updates button to see if a new version is available. If an u
 
 ## Screenshots
 
-*(Include screenshots of the application in both light and dark themes, showcasing the main interface and features here)*
+*![Image](https://github.com/user-attachments/assets/f777b39d-b612-4128-b280-6db3a04ada10)*
 
 ## Troubleshooting
 
