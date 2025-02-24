@@ -56,10 +56,6 @@ Ensure you have the following installed on your Ubuntu system:
     ```bash
     cd MacroRecorder
     ```
-3.  **Install Required Python Packages:**
-    ```bash
-    pip3 install pynput requests
-    ```
     **Note:** If you encounter any issues, ensure that you have pip installed and updated:
     ```bash
     sudo apt-get install python3-pip
