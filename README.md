@@ -50,7 +50,7 @@ Ensure you have the following installed on your Ubuntu system:
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/V4mpw0L/MacroRecorder.git](https://github.com/V4mpw0L/MacroRecorder.git)
+    git clone https://github.com/V4mpw0L/MacroRecorder.git
     ```
 2.  **Navigate to the Project Directory:**
     ```bash
