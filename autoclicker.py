@@ -17,7 +17,7 @@ import logging
 import json
 from queue import Queue
 
-__version__ = "1.1"
+__version__ = "2.0"
 
 logging.basicConfig(
     filename='macro_recorder.log',
@@ -40,7 +40,7 @@ class KeyListener(threading.Thread):
 
     def on_press(self, key):
         self.queue.put(key)
-        return False
+        return False  # Stop listener after first key press
 
 class MacroRecorder:
     def __init__(self, root):
@@ -421,10 +421,21 @@ class MacroRecorder:
             if not current_key:
                 return
 
+            is_hotkey = False
             if current_key == self.record_hotkey.lower():
                 self.toggle_recording()
+                is_hotkey = True
             elif current_key == self.play_hotkey.lower():
                 self.toggle_playing()
+                is_hotkey = True
+
+            if self.recording and not is_hotkey:
+                current_time = time()
+                delay = current_time - self.last_time
+                self.last_time = current_time
+                self.events.append(("key_press", key, delay))
+                logging.debug(f"Recorded key press: {key}")
+
         except Exception as e:
             logging.error(f"Key handling error: {e}")
 
