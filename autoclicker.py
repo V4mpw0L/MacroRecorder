@@ -33,7 +33,7 @@ class MacroRecorder:
         self.playing = False
         self.events = []
         self.loop_infinite = False
-        self.mouse_move_interval = 0.2
+        self.mouse_move_interval = 0.1
         self.last_mouse_position = None
 
         self.style = ttk.Style()
