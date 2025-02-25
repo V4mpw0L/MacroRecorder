@@ -19,9 +19,9 @@ from queue import Queue
 import platform
 from typing import Optional, Tuple, Any
 
-__version__ = "2.0"
+__version__ = "2.1"
 
-# Configure logging with a more secure file permission
+# Configure logging with secure permissions
 logging.basicConfig(
     filename='macro_recorder.log',
     level=logging.DEBUG,
@@ -63,6 +63,7 @@ class MacroRecorder:
         self.loop_infinite = False
         self.record_hotkey = 'f6'
         self.play_hotkey = 'f5'
+        self.last_time = 0.0
 
         self.style = ttk.Style()
         self.theme = 'light'
@@ -72,14 +73,31 @@ class MacroRecorder:
         self.load_config()
         self.update_hotkey_buttons()
 
-        self.mouse_listener = mouse.Listener(on_click=self.on_click, on_move=self.on_move)
-        self.keyboard_listener = keyboard.Listener(on_press=self.on_press)
+        # Initialize listeners with suppression for Windows
+        self.mouse_listener = None
+        self.keyboard_listener = None
+        self.setup_listeners()
 
+    def setup_listeners(self) -> None:
+        """Setup or restart input listeners."""
         try:
+            # Stop existing listeners if they exist
+            if self.mouse_listener and self.mouse_listener.running:
+                self.mouse_listener.stop()
+            if self.keyboard_listener and self.keyboard_listener.running:
+                self.keyboard_listener.stop()
+
+            # Configure listeners with error suppression on Windows
+            kwargs = {'suppress': self.is_windows} if self.is_windows else {}
+            self.mouse_listener = mouse.Listener(on_click=self.on_click, on_move=self.on_move, **kwargs)
+            self.keyboard_listener = keyboard.Listener(on_press=self.on_press, **kwargs)
+
             self.mouse_listener.start()
             self.keyboard_listener.start()
+            logging.info("Input listeners started successfully")
         except Exception as e:
-            messagebox.showerror("Initialization Error", f"Failed to start listeners: {e}")
+            messagebox.showerror("Listener Error", f"Failed to start listeners: {e}")
+            logging.error(f"Failed to start listeners: {e}")
             self.root.destroy()
             sys.exit(1)
 
@@ -104,6 +122,7 @@ class MacroRecorder:
         
         self.help_menu = tk.Menu(self.menubar, tearoff=0)
         self.help_menu.add_command(label="About", command=self.show_about)
+        self.help_menu.add_command(label="Donation", command=self.show_donation)
         self.menubar.add_cascade(label="Help", menu=self.help_menu)
         
         self.root.config(menu=self.menubar)
@@ -137,7 +156,6 @@ class MacroRecorder:
         self.loop_entry.insert(0, "1")
         self.loop_entry.grid(row=0, column=1, padx=3, pady=3, sticky=tk.E)
 
-        # Infinite Loop Checkbox - Aligned text with others, checkbox on right
         self.loop_infinite_var = tk.BooleanVar()
         self.loop_infinite_label = ttk.Label(self.controls_frame, text="Infinite Loop:")
         self.loop_infinite_label.grid(row=1, column=0, padx=3, pady=3, sticky=tk.W)
@@ -379,10 +397,22 @@ class MacroRecorder:
         
         if hasattr(self, 'about_window') and self.about_window.winfo_exists():
             self.update_about_window_styles()
+        if hasattr(self, 'donation_window') and self.donation_window.winfo_exists():
+            self.update_donation_window_styles()
 
     def update_about_window_styles(self) -> None:
         self.about_window.configure(background=self.bg_color)
         for widget in self.about_window.winfo_children():
+            if isinstance(widget, ttk.Label):
+                widget.configure(background=self.bg_color, foreground=self.fg_color)
+            elif isinstance(widget, ttk.Button):
+                widget.configure(style='TButton')
+            elif isinstance(widget, tk.Label):
+                widget.configure(background=self.bg_color, foreground=self.link_color)
+
+    def update_donation_window_styles(self) -> None:
+        self.donation_window.configure(background=self.bg_color)
+        for widget in self.donation_window.winfo_children():
             if isinstance(widget, ttk.Label):
                 widget.configure(background=self.bg_color, foreground=self.fg_color)
             elif isinstance(widget, ttk.Button):
@@ -399,13 +429,15 @@ class MacroRecorder:
             self.play_button.config(state='disabled')
             self.record_button.config(style='Active.Record.TButton')
             self.events = []
-            self.start_time = time()
-            self.last_time = self.start_time if not self.is_windows else time()
+            self.last_time = time()
+            # Restart listeners to ensure they're active
+            if self.is_windows:
+                self.setup_listeners()
             logging.info("Recording started")
         else:
             self.play_button.config(state='normal')
             self.record_button.config(style='Record.TButton')
-            logging.info("Recording stopped")
+            logging.info(f"Recording stopped. Recorded {len(self.events)} events")
         self.update_hotkey_buttons()
 
     def toggle_playing(self) -> None:
@@ -415,12 +447,13 @@ class MacroRecorder:
         if not self.playing:
             if not self.events:
                 messagebox.showwarning("No Events", "No recorded events to play.")
+                logging.warning("Attempted playback with no events")
                 return
             self.record_button.config(state='disabled')
             self.play_button.config(style='Active.Play.TButton')
             self.playing = True
+            logging.info(f"Starting playback with {len(self.events)} events")
             threading.Thread(target=self.play_events, daemon=True).start()
-            logging.info("Playback started")
         else:
             self.record_button.config(state='normal')
             self.play_button.config(style='Play.TButton')
@@ -448,28 +481,46 @@ class MacroRecorder:
 
             if self.recording and not is_hotkey:
                 current_time = time()
+                if self.last_time == 0.0:
+                    self.last_time = current_time
                 delay = current_time - self.last_time
-                self.last_time = current_time
                 self.events.append(("key_press", key, delay))
-                logging.debug(f"Recorded key press: {key}")
+                self.last_time = current_time
+                logging.debug(f"Recorded key press: {key}, delay: {delay}, total events: {len(self.events)}")
         except Exception as e:
             logging.error(f"Key handling error: {e}")
+            if self.is_windows:
+                self.setup_listeners()  # Restart listeners on error
 
     def on_click(self, x: int, y: int, button: mouse.Button, pressed: bool) -> None:
         if self.recording:
-            current_time = time()
-            delay = current_time - self.last_time
-            self.last_time = current_time
-            self.events.append(("click", x, y, button, pressed, delay))
-            logging.debug(f"Recorded click: {button} {'press' if pressed else 'release'} at ({x}, {y})")
+            try:
+                current_time = time()
+                if self.last_time == 0.0:
+                    self.last_time = current_time
+                delay = current_time - self.last_time
+                self.events.append(("click", x, y, button, pressed, delay))
+                self.last_time = current_time
+                logging.debug(f"Recorded click: {button} {'press' if pressed else 'release'} at ({x}, {y}), delay: {delay}, total events: {len(self.events)}")
+            except Exception as e:
+                logging.error(f"Click handling error: {e}")
+                if self.is_windows:
+                    self.setup_listeners()  # Restart listeners on error
 
     def on_move(self, x: int, y: int) -> None:
         if self.recording:
-            current_time = time()
-            delay = current_time - self.last_time
-            self.last_time = current_time
-            self.events.append(("move", x, y, delay))
-            logging.debug(f"Recorded move to ({x}, {y})")
+            try:
+                current_time = time()
+                if self.last_time == 0.0:
+                    self.last_time = current_time
+                delay = current_time - self.last_time
+                self.events.append(("move", x, y, delay))
+                self.last_time = current_time
+                logging.debug(f"Recorded move to ({x}, {y}), delay: {delay}, total events: {len(self.events)}")
+            except Exception as e:
+                logging.error(f"Move handling error: {e}")
+                if self.is_windows:
+                    self.setup_listeners()  # Restart listeners on error
 
     def save_script(self) -> None:
         file_path = filedialog.asksaveasfilename(defaultextension=".pkl",
@@ -479,7 +530,7 @@ class MacroRecorder:
                 with open(file_path, "wb") as f:
                     pickle.dump(self.events, f)
                 messagebox.showinfo("Success", "Script saved successfully!")
-                logging.info(f"Script saved to {file_path}")
+                logging.info(f"Script saved to {file_path} with {len(self.events)} events")
             except (IOError, pickle.PickleError) as e:
                 messagebox.showerror("Error", f"Failed to save script:\n{e}")
                 logging.error(f"Failed to save script: {e}")
@@ -491,7 +542,7 @@ class MacroRecorder:
                 with open(file_path, "rb") as f:
                     self.events = pickle.load(f)
                 messagebox.showinfo("Success", "Script loaded successfully!")
-                logging.info(f"Script loaded from {file_path}")
+                logging.info(f"Script loaded from {file_path} with {len(self.events)} events")
             except (IOError, pickle.UnpicklingError) as e:
                 messagebox.showerror("Error", f"Failed to load script:\n{e}")
                 logging.error(f"Failed to load script: {e}")
@@ -628,10 +679,46 @@ class MacroRecorder:
 
         ttk.Button(self.about_window, text="Close", command=self.about_window.destroy).pack(pady=10)
 
+    def show_donation(self) -> None:
+        self.donation_window = tk.Toplevel(self.root)
+        self.donation_window.title("Donation")
+        self.donation_window.resizable(False, False)
+        self.donation_window.geometry("400x150")
+        self.donation_window.attributes('-topmost', True)
+        self.donation_window.configure(background=self.bg_color)
+
+        x = self.root.winfo_x() + (self.root.winfo_width() - 400) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - 150) // 2
+        self.donation_window.geometry(f"+{x}+{y}")
+
+        ttk.Label(self.donation_window, text="Support the Project", font=('Helvetica', 12, 'bold'),
+                 background=self.bg_color, foreground=self.fg_color).pack(pady=10)
+
+        btc_address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"  # Replace with your actual address
+        btc_text = f"₿ Bitcoin: {btc_address}"
+
+        btc_label = tk.Label(self.donation_window, text=btc_text, fg=self.link_color,
+                            cursor="hand2", background=self.bg_color)
+        btc_label.pack(pady=5)
+        btc_label.bind("<Button-1>", lambda e: self.copy_to_clipboard(btc_address))
+
+        ttk.Label(self.donation_window, text="Click to copy address", background=self.bg_color,
+                 foreground=self.fg_color).pack(pady=5)
+
+        ttk.Button(self.donation_window, text="Close", command=self.donation_window.destroy).pack(pady=10)
+
+    def copy_to_clipboard(self, text: str) -> None:
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.root.update()
+        messagebox.showinfo("Copied", "Bitcoin address copied to clipboard!")
+
     def on_close(self) -> None:
         try:
-            self.mouse_listener.stop()
-            self.keyboard_listener.stop()
+            if self.mouse_listener and self.mouse_listener.running:
+                self.mouse_listener.stop()
+            if self.keyboard_listener and self.keyboard_listener.running:
+                self.keyboard_listener.stop()
         except Exception as e:
             logging.error(f"Error stopping listeners: {e}")
         finally:
