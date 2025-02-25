@@ -127,7 +127,7 @@ Click the Check for Updates button to see if a new version is available. If an u
 *   **Permission Errors:** If you encounter permission errors when running or updating the application, you may need to run it with elevated permissions:
 
     ```bash
-    sudo python3 autoclicker.py
+    sudo python3 macrorecorder.py
     ```
 
     **Caution:** Running scripts with `sudo` can be a security risk; ensure you trust the source.
