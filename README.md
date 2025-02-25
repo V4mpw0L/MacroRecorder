@@ -120,7 +120,7 @@ Click the Check for Updates button to see if a new version is available. If an u
 
 ## Screenshots
 
-*![Image](https://github.com/user-attachments/assets/ae40e8d0-c6d9-4f5e-9ed1-2c03b3ac3f48)*
+*![Image](https://github.com/user-attachments/assets/82308794-daab-467a-9676-a0064154e36f)*
 
 ## Troubleshooting
 
