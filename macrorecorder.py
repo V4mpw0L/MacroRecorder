@@ -73,33 +73,66 @@ class MacroRecorder:
         self.load_config()
         self.update_hotkey_buttons()
 
-        # Initialize listeners with suppression for Windows
+        # Initialize listeners
         self.mouse_listener = None
         self.keyboard_listener = None
         self.setup_listeners()
 
     def setup_listeners(self) -> None:
-        """Setup or restart input listeners."""
+        """Setup or restart input listeners with robust error handling."""
         try:
-            # Stop existing listeners if they exist
             if self.mouse_listener and self.mouse_listener.running:
                 self.mouse_listener.stop()
             if self.keyboard_listener and self.keyboard_listener.running:
                 self.keyboard_listener.stop()
 
-            # Configure listeners with error suppression on Windows
-            kwargs = {'suppress': self.is_windows} if self.is_windows else {}
-            self.mouse_listener = mouse.Listener(on_click=self.on_click, on_move=self.on_move, **kwargs)
-            self.keyboard_listener = keyboard.Listener(on_press=self.on_press, **kwargs)
+            # Use suppress on Windows and wrap callbacks
+            kwargs = {'suppress': True} if self.is_windows else {}
+            self.mouse_listener = mouse.Listener(
+                on_click=lambda x, y, b, p: self.safe_on_click(x, y, b, p),
+                on_move=lambda x, y: self.safe_on_move(x, y),
+                **kwargs
+            )
+            self.keyboard_listener = keyboard.Listener(
+                on_press=lambda k: self.safe_on_press(k),
+                **kwargs
+            )
 
             self.mouse_listener.start()
             self.keyboard_listener.start()
-            logging.info("Input listeners started successfully")
+            logging.info(f"Listeners started. Mouse running: {self.mouse_listener.running}, Keyboard running: {self.keyboard_listener.running}")
         except Exception as e:
-            messagebox.showerror("Listener Error", f"Failed to start listeners: {e}")
             logging.error(f"Failed to start listeners: {e}")
+            messagebox.showerror("Listener Error", f"Failed to start listeners: {e}\nTry running as administrator or using Python 3.12.")
             self.root.destroy()
             sys.exit(1)
+
+    def safe_on_press(self, key: Any) -> None:
+        """Safe wrapper for on_press to prevent listener crashes."""
+        try:
+            self.on_press(key)
+        except Exception as e:
+            logging.error(f"Safe on_press error: {e}")
+            if self.is_windows:
+                self.setup_listeners()
+
+    def safe_on_click(self, x: int, y: int, button: mouse.Button, pressed: bool) -> None:
+        """Safe wrapper for on_click to prevent listener crashes."""
+        try:
+            self.on_click(x, y, button, pressed)
+        except Exception as e:
+            logging.error(f"Safe on_click error: {e}")
+            if self.is_windows:
+                self.setup_listeners()
+
+    def safe_on_move(self, x: int, y: int) -> None:
+        """Safe wrapper for on_move to prevent listener crashes."""
+        try:
+            self.on_move(x, y)
+        except Exception as e:
+            logging.error(f"Safe on_move error: {e}")
+            if self.is_windows:
+                self.setup_listeners()
 
     def create_widgets(self) -> None:
         self.menubar = tk.Menu(self.root)
@@ -430,9 +463,8 @@ class MacroRecorder:
             self.record_button.config(style='Active.Record.TButton')
             self.events = []
             self.last_time = time()
-            # Restart listeners to ensure they're active
             if self.is_windows:
-                self.setup_listeners()
+                self.setup_listeners()  # Restart listeners on Windows
             logging.info("Recording started")
         else:
             self.play_button.config(state='normal')
@@ -489,8 +521,6 @@ class MacroRecorder:
                 logging.debug(f"Recorded key press: {key}, delay: {delay}, total events: {len(self.events)}")
         except Exception as e:
             logging.error(f"Key handling error: {e}")
-            if self.is_windows:
-                self.setup_listeners()  # Restart listeners on error
 
     def on_click(self, x: int, y: int, button: mouse.Button, pressed: bool) -> None:
         if self.recording:
@@ -504,8 +534,6 @@ class MacroRecorder:
                 logging.debug(f"Recorded click: {button} {'press' if pressed else 'release'} at ({x}, {y}), delay: {delay}, total events: {len(self.events)}")
             except Exception as e:
                 logging.error(f"Click handling error: {e}")
-                if self.is_windows:
-                    self.setup_listeners()  # Restart listeners on error
 
     def on_move(self, x: int, y: int) -> None:
         if self.recording:
@@ -519,8 +547,6 @@ class MacroRecorder:
                 logging.debug(f"Recorded move to ({x}, {y}), delay: {delay}, total events: {len(self.events)}")
             except Exception as e:
                 logging.error(f"Move handling error: {e}")
-                if self.is_windows:
-                    self.setup_listeners()  # Restart listeners on error
 
     def save_script(self) -> None:
         file_path = filedialog.asksaveasfilename(defaultextension=".pkl",
