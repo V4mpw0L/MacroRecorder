@@ -139,10 +139,10 @@ Click the Check for Updates button to see if a new version is available. If an u
 
     **Caution:** Running scripts with `sudo` can be a security risk; ensure you trust the source.
 
-*   **Missing Packages:** If prompted about missing packages like `requests` or `pynput`, install them using:
+*   **Missing Packages:** If prompted about missing packages like `tkinter` `requests` or `pynput`, install them using:
 
     ```bash
-    pip3 install requests pynput
+    pip3 install requests pynput tkinter
     ```
 
 *   **Display Issues:** If the GUI elements do not display correctly, ensure that Tkinter is properly installed:
