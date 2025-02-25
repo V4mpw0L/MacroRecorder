@@ -19,7 +19,7 @@ from queue import Queue
 import platform
 from typing import Optional, Tuple, Any
 
-__version__ = "2.1"
+__version__ = "2.0"
 
 # Configure logging with a more secure file permission
 logging.basicConfig(
