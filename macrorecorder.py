@@ -79,60 +79,33 @@ class MacroRecorder:
         self.setup_listeners()
 
     def setup_listeners(self) -> None:
-        """Setup or restart input listeners with robust error handling."""
+        """Setup or restart input listeners with basic configuration."""
         try:
             if self.mouse_listener and self.mouse_listener.running:
                 self.mouse_listener.stop()
             if self.keyboard_listener and self.keyboard_listener.running:
                 self.keyboard_listener.stop()
 
-            # Use suppress on Windows and wrap callbacks
-            kwargs = {'suppress': True} if self.is_windows else {}
+            # Simplified setup without suppress
             self.mouse_listener = mouse.Listener(
-                on_click=lambda x, y, b, p: self.safe_on_click(x, y, b, p),
-                on_move=lambda x, y: self.safe_on_move(x, y),
-                **kwargs
+                on_click=self.on_click,
+                on_move=self.on_move
             )
             self.keyboard_listener = keyboard.Listener(
-                on_press=lambda k: self.safe_on_press(k),
-                **kwargs
+                on_press=self.on_press
             )
 
             self.mouse_listener.start()
             self.keyboard_listener.start()
             logging.info(f"Listeners started. Mouse running: {self.mouse_listener.running}, Keyboard running: {self.keyboard_listener.running}")
+            if self.is_windows and not (self.mouse_listener.running and self.keyboard_listener.running):
+                logging.warning("Listeners may require admin privileges on Windows.")
+                messagebox.showwarning("Permission Issue", "Listeners may not work without admin privileges.\nRun as administrator via Command Prompt.")
         except Exception as e:
             logging.error(f"Failed to start listeners: {e}")
-            messagebox.showerror("Listener Error", f"Failed to start listeners: {e}\nTry running as administrator or using Python 3.12.")
+            messagebox.showerror("Listener Error", f"Failed to start listeners: {e}\nTry running with Python 3.12 or as administrator.")
             self.root.destroy()
             sys.exit(1)
-
-    def safe_on_press(self, key: Any) -> None:
-        """Safe wrapper for on_press to prevent listener crashes."""
-        try:
-            self.on_press(key)
-        except Exception as e:
-            logging.error(f"Safe on_press error: {e}")
-            if self.is_windows:
-                self.setup_listeners()
-
-    def safe_on_click(self, x: int, y: int, button: mouse.Button, pressed: bool) -> None:
-        """Safe wrapper for on_click to prevent listener crashes."""
-        try:
-            self.on_click(x, y, button, pressed)
-        except Exception as e:
-            logging.error(f"Safe on_click error: {e}")
-            if self.is_windows:
-                self.setup_listeners()
-
-    def safe_on_move(self, x: int, y: int) -> None:
-        """Safe wrapper for on_move to prevent listener crashes."""
-        try:
-            self.on_move(x, y)
-        except Exception as e:
-            logging.error(f"Safe on_move error: {e}")
-            if self.is_windows:
-                self.setup_listeners()
 
     def create_widgets(self) -> None:
         self.menubar = tk.Menu(self.root)
@@ -464,12 +437,12 @@ class MacroRecorder:
             self.events = []
             self.last_time = time()
             if self.is_windows:
-                self.setup_listeners()  # Restart listeners on Windows
+                self.setup_listeners()
             logging.info("Recording started")
         else:
             self.play_button.config(state='normal')
             self.record_button.config(style='Record.TButton')
-            logging.info(f"Recording stopped. Recorded {len(self.events)} events")
+            logging.info(f"Recording stopped. Recorded {len(self.events)} events: {self.events}")
         self.update_hotkey_buttons()
 
     def toggle_playing(self) -> None:
@@ -484,7 +457,7 @@ class MacroRecorder:
             self.record_button.config(state='disabled')
             self.play_button.config(style='Active.Play.TButton')
             self.playing = True
-            logging.info(f"Starting playback with {len(self.events)} events")
+            logging.info(f"Starting playback with {len(self.events)} events: {self.events}")
             threading.Thread(target=self.play_events, daemon=True).start()
         else:
             self.record_button.config(state='normal')
