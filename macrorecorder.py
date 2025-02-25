@@ -653,7 +653,7 @@ class MacroRecorder:
         ttk.Label(self.donation_window, text="Support the Project", font=('Helvetica', 12, 'bold'),
                  background=self.bg_color, foreground=self.fg_color).pack(pady=10)
 
-        btc_address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+        btc_address = "bc1qgfgjffqy8ykprf4wh7a6hk2xqhnl93p9t6fz68"
         btc_text = f"₿ Bitcoin: {btc_address}"
 
         btc_label = tk.Label(self.donation_window, text=btc_text, fg=self.link_color,
