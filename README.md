@@ -90,7 +90,7 @@ Ensure you have the following installed on your Ubuntu system:
 **Running the Application:**
 
 ```bash
-python3 autoclicker.py
+python3 macrorecorder.py
 ```
 
 **Recording Macros:**
