@@ -43,6 +43,13 @@ A powerful and user-friendly macro recorder for Ubuntu Linux and Windows that ca
 - Thread-safe operations
 - Config file support (~/.macro_recorder_config.json)
 
+- ## New in v2.2
+- Automatic Windows UAC elevation
+- Enhanced permission handling for input devices
+- Fixed Windows listener initialization
+- Improved cross-platform compatibility
+- Better error logging and handling
+
 ## Prerequisites
 
 Ensure you have the following installed on your Ubuntu system:
