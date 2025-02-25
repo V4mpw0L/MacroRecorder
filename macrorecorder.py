@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 
+# Windows UAC elevation
+import os
+import sys
+if os.name == 'nt':
+    import ctypes
+    if ctypes.windll.shell32.IsUserAnAdmin() == 0:
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+        sys.exit()
+
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import pynput.mouse as mouse
@@ -7,9 +16,7 @@ import pynput.keyboard as keyboard
 import threading
 from time import time, sleep
 import pickle
-import sys
 import subprocess
-import os
 import requests
 import random
 import webbrowser
@@ -19,7 +26,7 @@ from queue import Queue
 import platform
 from typing import Optional, Tuple, Any
 
-__version__ = "2.1"
+__version__ = "2.2"
 
 # Configure logging with secure permissions
 logging.basicConfig(
@@ -28,7 +35,8 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     filemode='a'
 )
-os.chmod('macro_recorder.log', 0o600) if os.path.exists('macro_recorder.log') else None
+if os.path.exists('macro_recorder.log'):
+    os.chmod('macro_recorder.log', 0o600)
 
 class KeyListener(threading.Thread):
     def __init__(self, queue: Queue):
@@ -73,43 +81,14 @@ class MacroRecorder:
         self.load_config()
         self.update_hotkey_buttons()
 
-        # Initialize listeners
         self.mouse_listener = None
         self.keyboard_listener = None
         self.setup_listeners()
 
-    def setup_listeners(self) -> None:
-        """Setup or restart input listeners with basic configuration."""
-        try:
-            if self.mouse_listener and self.mouse_listener.running:
-                self.mouse_listener.stop()
-            if self.keyboard_listener and self.keyboard_listener.running:
-                self.keyboard_listener.stop()
-
-            # Simplified setup without suppress
-            self.mouse_listener = mouse.Listener(
-                on_click=self.on_click,
-                on_move=self.on_move
-            )
-            self.keyboard_listener = keyboard.Listener(
-                on_press=self.on_press
-            )
-
-            self.mouse_listener.start()
-            self.keyboard_listener.start()
-            logging.info(f"Listeners started. Mouse running: {self.mouse_listener.running}, Keyboard running: {self.keyboard_listener.running}")
-            if self.is_windows and not (self.mouse_listener.running and self.keyboard_listener.running):
-                logging.warning("Listeners may require admin privileges on Windows.")
-                messagebox.showwarning("Permission Issue", "Listeners may not work without admin privileges.\nRun as administrator via Command Prompt.")
-        except Exception as e:
-            logging.error(f"Failed to start listeners: {e}")
-            messagebox.showerror("Listener Error", f"Failed to start listeners: {e}\nTry running with Python 3.12 or as administrator.")
-            self.root.destroy()
-            sys.exit(1)
-
     def create_widgets(self) -> None:
         self.menubar = tk.Menu(self.root)
         
+        # File Menu
         self.file_menu = tk.Menu(self.menubar, tearoff=0)
         self.file_menu.add_command(label="Save Script", command=self.save_script)
         self.file_menu.add_command(label="Load Script", command=self.load_script)
@@ -117,15 +96,18 @@ class MacroRecorder:
         self.file_menu.add_command(label="Exit", command=self.on_close)
         self.menubar.add_cascade(label="File", menu=self.file_menu)
         
+        # Settings Menu
         self.settings_menu = tk.Menu(self.menubar, tearoff=0)
         self.settings_menu.add_command(label="Change Hotkeys", command=self.change_hotkeys)
         self.menubar.add_cascade(label="Settings", menu=self.settings_menu)
         
+        # Theme Menu
         self.theme_menu = tk.Menu(self.menubar, tearoff=0)
         self.theme_menu.add_command(label="Light Theme", command=self.apply_light_theme)
         self.theme_menu.add_command(label="Dark Theme", command=self.apply_dark_theme)
         self.menubar.add_cascade(label="Theme", menu=self.theme_menu)
         
+        # Help Menu
         self.help_menu = tk.Menu(self.menubar, tearoff=0)
         self.help_menu.add_command(label="About", command=self.show_about)
         self.help_menu.add_command(label="Donation", command=self.show_donation)
@@ -133,11 +115,11 @@ class MacroRecorder:
         
         self.root.config(menu=self.menubar)
 
+        # Main Interface
         self.main_frame = ttk.Frame(self.root)
         self.main_frame.pack(pady=5)
 
         button_width = 15
-
         self.record_button = ttk.Button(
             self.main_frame, text="Record (F6)", command=self.toggle_recording,
             width=button_width, style='Record.TButton'
@@ -150,11 +132,9 @@ class MacroRecorder:
         )
         self.play_button.pack(pady=3)
 
+        # Controls Frame
         self.controls_frame = ttk.Frame(self.root)
         self.controls_frame.pack(pady=5)
-
-        self.controls_frame.columnconfigure(0, weight=1)
-        self.controls_frame.columnconfigure(1, weight=1)
 
         self.loop_label = ttk.Label(self.controls_frame, text="Loop Count:")
         self.loop_label.grid(row=0, column=0, padx=3, pady=3, sticky=tk.W)
@@ -405,26 +385,6 @@ class MacroRecorder:
             self.update_about_window_styles()
         if hasattr(self, 'donation_window') and self.donation_window.winfo_exists():
             self.update_donation_window_styles()
-
-    def update_about_window_styles(self) -> None:
-        self.about_window.configure(background=self.bg_color)
-        for widget in self.about_window.winfo_children():
-            if isinstance(widget, ttk.Label):
-                widget.configure(background=self.bg_color, foreground=self.fg_color)
-            elif isinstance(widget, ttk.Button):
-                widget.configure(style='TButton')
-            elif isinstance(widget, tk.Label):
-                widget.configure(background=self.bg_color, foreground=self.link_color)
-
-    def update_donation_window_styles(self) -> None:
-        self.donation_window.configure(background=self.bg_color)
-        for widget in self.donation_window.winfo_children():
-            if isinstance(widget, ttk.Label):
-                widget.configure(background=self.bg_color, foreground=self.fg_color)
-            elif isinstance(widget, ttk.Button):
-                widget.configure(style='TButton')
-            elif isinstance(widget, tk.Label):
-                widget.configure(background=self.bg_color, foreground=self.link_color)
 
     def toggle_recording(self) -> None:
         if self.playing:
@@ -693,7 +653,7 @@ class MacroRecorder:
         ttk.Label(self.donation_window, text="Support the Project", font=('Helvetica', 12, 'bold'),
                  background=self.bg_color, foreground=self.fg_color).pack(pady=10)
 
-        btc_address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"  # Replace with your actual address
+        btc_address = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
         btc_text = f"₿ Bitcoin: {btc_address}"
 
         btc_label = tk.Label(self.donation_window, text=btc_text, fg=self.link_color,
@@ -711,6 +671,33 @@ class MacroRecorder:
         self.root.clipboard_append(text)
         self.root.update()
         messagebox.showinfo("Copied", "Bitcoin address copied to clipboard!")
+
+    def setup_listeners(self) -> None:
+        try:
+            if self.mouse_listener and self.mouse_listener.running:
+                self.mouse_listener.stop()
+            if self.keyboard_listener and self.keyboard_listener.running:
+                self.keyboard_listener.stop()
+
+            self.mouse_listener = mouse.Listener(
+                on_click=self.on_click,
+                on_move=self.on_move
+            )
+            self.keyboard_listener = keyboard.Listener(
+                on_press=self.on_press
+            )
+
+            self.mouse_listener.start()
+            self.keyboard_listener.start()
+            logging.info(f"Listeners started. Mouse running: {self.mouse_listener.running}, Keyboard running: {self.keyboard_listener.running}")
+            if self.is_windows and not (self.mouse_listener.running and self.keyboard_listener.running):
+                logging.warning("Listeners may require admin privileges on Windows.")
+                messagebox.showwarning("Permission Issue", "Listeners may not work without admin privileges.\nRun as administrator via Command Prompt.")
+        except Exception as e:
+            logging.error(f"Failed to start listeners: {e}")
+            messagebox.showerror("Listener Error", f"Failed to start listeners: {e}\nTry running with Python 3.12 or as administrator.")
+            self.root.destroy()
+            sys.exit(1)
 
     def on_close(self) -> None:
         try:
