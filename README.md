@@ -1,4 +1,4 @@
-# Macro Recorder for Linux and Windows v2.1
+# Macro Recorder for Linux and Windows v2.2
 
 A powerful and user-friendly macro recorder for Ubuntu Linux and Windows that captures and replays mouse movements and clicks. The application features a graphical user interface (GUI) built with tkinter, allowing you to record, save, load, and play macros with customizable loop counts and themes.
 
