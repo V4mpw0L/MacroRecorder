@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 
-# Windows UAC elevation
 import os
 import sys
-if os.name == 'nt':
-    import ctypes
-    if ctypes.windll.shell32.IsUserAnAdmin() == 0:
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
-        sys.exit()
-
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import pynput.mouse as mouse
@@ -23,7 +16,6 @@ import webbrowser
 import logging
 import json
 from queue import Queue
-import platform
 from typing import Optional, Tuple, Any
 
 __version__ = "2.2"
@@ -64,7 +56,6 @@ class MacroRecorder:
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.attributes('-topmost', True)
         
-        self.is_windows = platform.system() == "Windows"
         self.recording = False
         self.playing = False
         self.events = []
@@ -80,9 +71,6 @@ class MacroRecorder:
         self.apply_light_theme()
         self.load_config()
         self.update_hotkey_buttons()
-
-        self.mouse_listener = None
-        self.keyboard_listener = None
         self.setup_listeners()
 
     def create_widgets(self) -> None:
@@ -339,45 +327,46 @@ class MacroRecorder:
         self.theme_menu.configure(bg=self.menu_bg, fg=self.menu_fg)
         self.help_menu.configure(bg=self.menu_bg, fg=self.menu_fg)
 
-        if self.is_windows:
-            self.style.theme_use('clam')
-            self.style.configure('.', background=self.bg_color, foreground=self.fg_color)
-            
-            self.style.configure('Record.TButton', background=self.record_button_color, foreground='white')
-            self.style.configure('Active.Record.TButton', background=self.active_button_color, foreground='white')
-            self.style.configure('Play.TButton', background=self.play_button_color, foreground='white')
-            self.style.configure('Active.Play.TButton', background=self.active_button_color, foreground='white')
-            self.style.configure('Update.TButton', background=self.update_button_color, foreground='white')
-            
-            self.style.map('Record.TButton', background=[('active', self.record_button_color)], foreground=[('active', 'white')])
-            self.style.map('Active.Record.TButton', background=[('active', self.active_button_color)], foreground=[('active', 'white')])
-            self.style.map('Play.TButton', background=[('active', self.play_button_color)], foreground=[('active', 'white')])
-            self.style.map('Active.Play.TButton', background=[('active', self.active_button_color)], foreground=[('active', 'white')])
-            self.style.map('Update.TButton', background=[('active', self.update_button_color)], foreground=[('active', 'white')])
-        else:
-            self.style.configure('TFrame', background=self.bg_color)
-            self.style.configure('TLabel', background=self.bg_color, foreground=self.fg_color)
-            self.style.configure('TEntry', fieldbackground=self.entry_bg, foreground=self.entry_fg)
-            self.style.configure('TCheckbutton', background=self.bg_color, foreground=self.fg_color)
-            self.style.map('TCheckbutton', background=[('active', self.bg_color)], foreground=[('active', self.fg_color)])
-            
-            self.style.configure('Record.TButton', background=self.record_button_color, foreground='#ffffff')
-            self.style.configure('Active.Record.TButton', background=self.active_button_color, foreground='#ffffff')
-            self.style.map('Record.TButton', background=[('active', self.record_button_color), ('disabled', '#cccccc')],
-                          foreground=[('active', '#ffffff'), ('disabled', '#666666')])
-            self.style.map('Active.Record.TButton', background=[('active', self.active_button_color)],
-                          foreground=[('active', '#ffffff')])
-            
-            self.style.configure('Play.TButton', background=self.play_button_color, foreground='#ffffff')
-            self.style.configure('Active.Play.TButton', background=self.active_button_color, foreground='#ffffff')
-            self.style.map('Play.TButton', background=[('active', self.play_button_color), ('disabled', '#cccccc')],
-                          foreground=[('active', '#ffffff'), ('disabled', '#666666')])
-            self.style.map('Active.Play.TButton', background=[('active', self.active_button_color)],
-                          foreground=[('active', '#ffffff')])
-            
-            self.style.configure('Update.TButton', background=self.update_button_color, foreground='#ffffff')
-            self.style.map('Update.TButton', background=[('active', self.update_button_color)],
-                          foreground=[('active', '#ffffff')])
+        # Linux-specific styling
+        self.style.configure('TFrame', background=self.bg_color)
+        self.style.configure('TLabel', background=self.bg_color, foreground=self.fg_color)
+        self.style.configure('TEntry', fieldbackground=self.entry_bg, foreground=self.entry_fg)
+        self.style.configure('TCheckbutton', background=self.bg_color, foreground=self.fg_color)
+        self.style.map('TCheckbutton', 
+                     background=[('active', self.bg_color)], 
+                     foreground=[('active', self.fg_color)])
+        
+        # Button styles
+        self.style.configure('Record.TButton', 
+                           background=self.record_button_color, 
+                           foreground='#ffffff')
+        self.style.configure('Active.Record.TButton', 
+                           background=self.active_button_color, 
+                           foreground='#ffffff')
+        self.style.map('Record.TButton',
+                     background=[('active', self.record_button_color),
+                                 ('disabled', '#cccccc')],
+                     foreground=[('active', '#ffffff'),
+                                 ('disabled', '#666666')])
+        
+        self.style.configure('Play.TButton', 
+                           background=self.play_button_color, 
+                           foreground='#ffffff')
+        self.style.configure('Active.Play.TButton', 
+                           background=self.active_button_color, 
+                           foreground='#ffffff')
+        self.style.map('Play.TButton',
+                     background=[('active', self.play_button_color),
+                                 ('disabled', '#cccccc')],
+                     foreground=[('active', '#ffffff'),
+                                 ('disabled', '#666666')])
+        
+        self.style.configure('Update.TButton', 
+                           background=self.update_button_color, 
+                           foreground='#ffffff')
+        self.style.map('Update.TButton',
+                     background=[('active', self.update_button_color)],
+                     foreground=[('active', '#ffffff')])
 
         self.root.configure(background=self.bg_color)
         
@@ -396,13 +385,11 @@ class MacroRecorder:
             self.record_button.config(style='Active.Record.TButton')
             self.events = []
             self.last_time = time()
-            if self.is_windows:
-                self.setup_listeners()
             logging.info("Recording started")
         else:
             self.play_button.config(state='normal')
             self.record_button.config(style='Record.TButton')
-            logging.info(f"Recording stopped. Recorded {len(self.events)} events: {self.events}")
+            logging.info(f"Recording stopped. Recorded {len(self.events)} events")
         self.update_hotkey_buttons()
 
     def toggle_playing(self) -> None:
@@ -417,7 +404,7 @@ class MacroRecorder:
             self.record_button.config(state='disabled')
             self.play_button.config(style='Active.Play.TButton')
             self.playing = True
-            logging.info(f"Starting playback with {len(self.events)} events: {self.events}")
+            logging.info(f"Starting playback with {len(self.events)} events")
             threading.Thread(target=self.play_events, daemon=True).start()
         else:
             self.record_button.config(state='normal')
@@ -674,11 +661,6 @@ class MacroRecorder:
 
     def setup_listeners(self) -> None:
         try:
-            if self.mouse_listener and self.mouse_listener.running:
-                self.mouse_listener.stop()
-            if self.keyboard_listener and self.keyboard_listener.running:
-                self.keyboard_listener.stop()
-
             self.mouse_listener = mouse.Listener(
                 on_click=self.on_click,
                 on_move=self.on_move
@@ -686,16 +668,12 @@ class MacroRecorder:
             self.keyboard_listener = keyboard.Listener(
                 on_press=self.on_press
             )
-
             self.mouse_listener.start()
             self.keyboard_listener.start()
-            logging.info(f"Listeners started. Mouse running: {self.mouse_listener.running}, Keyboard running: {self.keyboard_listener.running}")
-            if self.is_windows and not (self.mouse_listener.running and self.keyboard_listener.running):
-                logging.warning("Listeners may require admin privileges on Windows.")
-                messagebox.showwarning("Permission Issue", "Listeners may not work without admin privileges.\nRun as administrator via Command Prompt.")
+            logging.info("Listeners started successfully")
         except Exception as e:
             logging.error(f"Failed to start listeners: {e}")
-            messagebox.showerror("Listener Error", f"Failed to start listeners: {e}\nTry running with Python 3.12 or as administrator.")
+            messagebox.showerror("Listener Error", f"Failed to start listeners: {e}")
             self.root.destroy()
             sys.exit(1)
 
