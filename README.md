@@ -34,22 +34,6 @@ A powerful and user-friendly macro recorder for Ubuntu Linux that captures and r
   - Configurable through JSON settings
   - Portable script format (.pkl)
 
-## New in v2.0
-- Full keyboard input recording
-- Customizable hotkeys with UI configuration
-- Improved Windows 11 compatibility
-- Enhanced theme system
-- Better error handling and recovery
-- Thread-safe operations
-- Config file support (~/.macro_recorder_config.json)
-
-- ## New in v2.2
-- Automatic Windows UAC elevation
-- Enhanced permission handling for input devices
-- Fixed Windows listener initialization
-- Improved cross-platform compatibility
-- Better error logging and handling
-
 ## Prerequisites
 
 Ensure you have the following installed on your Ubuntu system:
