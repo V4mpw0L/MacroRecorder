@@ -1,4 +1,4 @@
-# Macro Recorder for Linux v2.2
+# Macro Recorder for Linux v2.3
 
 A powerful and user-friendly macro recorder for Ubuntu Linux that captures and replays mouse movements and clicks. The application features a graphical user interface (GUI) built with tkinter, allowing you to record, save, load, and play macros with customizable loop counts and themes.
 
