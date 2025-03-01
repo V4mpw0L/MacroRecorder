@@ -16,10 +16,6 @@ A powerful and user-friendly macro recorder for Ubuntu Linux that captures and r
   - Fully customizable hotkeys
   - Input validation for key selection
   - Dynamic button label updates
-* **Cross-Platform Support:**
-  - Windows 10/11
-  - Ubuntu/Debian Linux
-  - Other Linux distributions
 * **Enhanced UI Features:**
   - Light/Dark theme support
   - Color-coded status indicators
