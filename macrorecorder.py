@@ -18,7 +18,7 @@ import json
 from queue import Queue
 from typing import Optional, Tuple, Any
 
-__version__ = "2.2"
+__version__ = "2.3"
 
 # Configure logging with secure permissions
 logging.basicConfig(
@@ -91,14 +91,14 @@ class MacroRecorder:
         
         # Theme Menu
         self.theme_menu = tk.Menu(self.menubar, tearoff=0)
-        self.theme_menu.add_command(label="Light Theme", command=self.apply_light_theme)
-        self.theme_menu.add_command(label="Dark Theme", command=self.apply_dark_theme)
+        self.theme_menu.add_command(label="Light", command=self.apply_light_theme)
+        self.theme_menu.add_command(label="Dark", command=self.apply_dark_theme)
         self.menubar.add_cascade(label="Theme", menu=self.theme_menu)
         
         # Help Menu
         self.help_menu = tk.Menu(self.menubar, tearoff=0)
-        self.help_menu.add_command(label="About", command=self.show_about)
         self.help_menu.add_command(label="Donation", command=self.show_donation)
+        self.help_menu.add_command(label="About", command=self.show_about)
         self.menubar.add_cascade(label="Help", menu=self.help_menu)
         
         self.root.config(menu=self.menubar)
@@ -197,63 +197,141 @@ class MacroRecorder:
     def change_hotkeys(self) -> None:
         dialog = tk.Toplevel(self.root)
         dialog.title("Change Hotkeys")
-        dialog.geometry("300x200")
+        dialog.geometry("250x160")
         dialog.resizable(False, False)
         dialog.attributes('-topmost', True)
         dialog.configure(background=self.bg_color)
-        
+
+        # Initialize temporary hotkeys with current values
+        dialog.temp_record_hotkey = self.record_hotkey
+        dialog.temp_play_hotkey = self.play_hotkey
+
         frame = ttk.Frame(dialog)
         frame.pack(pady=10, padx=10, fill='both', expand=True)
 
-        ttk.Label(frame, text="Record Hotkey:", background=self.bg_color, 
+        ttk.Label(frame, text="Record Hotkey:", background=self.bg_color,
                  foreground=self.fg_color).grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
-        self.record_btn = ttk.Button(frame, text=f"{self.record_hotkey.upper()} (Click to set)",
-                                    command=lambda: self.set_hotkey(dialog, 'record'))
-        self.record_btn.grid(row=0, column=1, padx=5, pady=5)
-        
-        ttk.Label(frame, text="Play Hotkey:", background=self.bg_color, 
-                 foreground=self.fg_color).grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
-        self.play_btn = ttk.Button(frame, text=f"{self.play_hotkey.upper()} (Click to set)",
-                                  command=lambda: self.set_hotkey(dialog, 'play'))
-        self.play_btn.grid(row=1, column=1, padx=5, pady=5)
-        
-        self.status_label = ttk.Label(frame, text="", background=self.bg_color, 
-                                    foreground=self.fg_color)
-        self.status_label.grid(row=2, column=0, columnspan=2, pady=5)
-        
-        ttk.Button(frame, text="Save", command=lambda: self.save_new_hotkeys(dialog)
-                  ).grid(row=3, column=0, columnspan=2, pady=10)
+        record_btn = ttk.Button(frame, text=f"{dialog.temp_record_hotkey.upper()} (Click to set)",
+                                    command=lambda: self.set_hotkey(dialog, 'record'), style='RecordHotkey.TButton')
+        record_btn.grid(row=0, column=1, padx=5, pady=5)
+        dialog.record_btn = record_btn
 
-        x = self.root.winfo_x() + (self.root.winfo_width() - 300) // 2
-        y = self.root.winfo_y() + (self.root.winfo_height() - 200) // 2
+        ttk.Label(frame, text="Play Hotkey:", background=self.bg_color,
+                 foreground=self.fg_color).grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+        play_btn = ttk.Button(frame, text=f"{dialog.temp_play_hotkey.upper()} (Click to set)",
+                                  command=lambda: self.set_hotkey(dialog, 'play'), style='PlayHotkey.TButton')
+        play_btn.grid(row=1, column=1, padx=5, pady=5)
+        dialog.play_btn = play_btn
+
+        # Centralized message label
+        self.central_message_label = ttk.Label(frame, text="", background=self.bg_color,
+                                              foreground=self.fg_color)
+        self.central_message_label.grid(row=2, column=0, columnspan=2, pady=10)
+
+        self.status_label = ttk.Label(frame, text="", background=self.bg_color,
+                                    foreground=self.fg_color)
+        self.status_label.grid(row=4, column=0, columnspan=2, pady=(10, 0), sticky='s')
+
+        ttk.Button(frame, text="Save", command=lambda: self.save_new_hotkeys(dialog), style='SaveHotkey.TButton').grid(row=2, column=1, columnspan=2, pady=(10, 15))
+
+        x = self.root.winfo_x() + (self.root.winfo_width() - 250) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - 160) // 2
         dialog.geometry(f"+{x}+{y}")
 
+        # Assign the dialog to the instance
+        self.hotkey_change_dialog = dialog
+
+        dialog.protocol("WM_DELETE_WINDOW", lambda: self.on_hotkey_change_close(dialog))
+
     def set_hotkey(self, dialog: tk.Toplevel, hotkey_type: str) -> None:
-        self.status_label.config(text=f"Press any key for {hotkey_type}...")
+        self.central_message_label.config(text=f"Press any key for {hotkey_type}...")
+        self.status_label.config(text="")
         dialog.update_idletasks()
-        
+
         q = Queue()
         listener = KeyListener(q)
         listener.start()
         listener.join(timeout=30)
-        
+
         try:
             key = q.get_nowait()
             key_str = self.get_key_string(key)
-            
+
             if key_str:
                 if hotkey_type == 'record':
-                    self.record_hotkey = key_str
-                    self.record_btn.config(text=f"{key_str.upper()} (Click to set)")
+                    dialog.temp_record_hotkey = key_str
+                    dialog.record_btn.config(text=f"{key_str.upper()} (Click to set)")
                 else:
-                    self.play_hotkey = key_str
-                    self.play_btn.config(text=f"{key_str.upper()} (Click to set)")
+                    dialog.temp_play_hotkey = key_str
+                    dialog.play_btn.config(text=f"{key_str.upper()} (Click to set)")
+                self.central_message_label.config(text="")
                 self.status_label.config(text="Key set successfully!")
             else:
+                self.central_message_label.config(text="")
                 self.status_label.config(text="Invalid key, try again")
         except Exception as e:
+            self.central_message_label.config(text="")
             self.status_label.config(text=f"Error: {str(e)}")
             logging.error(f"Hotkey setting error: {e}")
+
+    def save_new_hotkeys(self, dialog: tk.Toplevel) -> None:
+        new_record = dialog.temp_record_hotkey
+        new_play = dialog.temp_play_hotkey
+
+        if new_record == new_play:
+            messagebox.showerror("Error", "Hotkeys must be different")
+            return
+
+        valid_record, msg_r = self.validate_hotkey(new_record)
+        valid_play, msg_p = self.validate_hotkey(new_play)
+
+        if not valid_record:
+            messagebox.showerror("Error", f"Invalid Record Hotkey: {msg_r}")
+            return
+        if not valid_play:
+            messagebox.showerror("Error", f"Invalid Play Hotkey: {msg_p}")
+            return
+
+        # Update main instance variables and save config
+        self.record_hotkey = new_record
+        self.play_hotkey = new_play
+        self.save_config()
+        self.update_hotkey_buttons()
+        dialog.destroy()
+
+    def on_hotkey_change_close(self, dialog) -> None:
+        if hasattr(self, 'hotkey_change_dialog'):
+            del self.hotkey_change_dialog
+        dialog.destroy()
+
+    def on_press(self, key: Any) -> None:
+        # Check if the hotkey change dialog exists AND is open
+        if hasattr(self, 'hotkey_change_dialog') and self.hotkey_change_dialog.winfo_exists():
+            return
+
+        try:
+            current_key = self.get_key_string(key)
+            if not current_key:
+                return
+
+            is_hotkey = False
+            if current_key == self.record_hotkey:
+                self.toggle_recording()
+                is_hotkey = True
+            elif current_key == self.play_hotkey:
+                self.toggle_playing()
+                is_hotkey = True
+
+            if self.recording and not is_hotkey:
+                current_time = time()
+                if self.last_time == 0.0:
+                    self.last_time = current_time
+                delay = current_time - self.last_time
+                self.events.append(("key_press", key, delay))
+                self.last_time = current_time
+                logging.debug(f"Recorded key press: {key}, delay: {delay}, total events: {len(self.events)}")
+        except Exception as e:
+            logging.error(f"Key handling error: {e}")
 
     def get_key_string(self, key: Any) -> Optional[str]:
         try:
@@ -264,25 +342,6 @@ class MacroRecorder:
             return None
         except AttributeError:
             return None
-
-    def save_new_hotkeys(self, dialog: tk.Toplevel) -> None:
-        if self.record_hotkey == self.play_hotkey:
-            messagebox.showerror("Error", "Hotkeys must be different")
-            return
-        
-        valid_record, msg_r = self.validate_hotkey(self.record_hotkey)
-        valid_play, msg_p = self.validate_hotkey(self.play_hotkey)
-        
-        if not valid_record:
-            messagebox.showerror("Error", f"Invalid Record Hotkey: {msg_r}")
-            return
-        if not valid_play:
-            messagebox.showerror("Error", f"Invalid Play Hotkey: {msg_p}")
-            return
-        
-        self.save_config()
-        self.update_hotkey_buttons()
-        dialog.destroy()
 
     def update_hotkey_buttons(self) -> None:
         self.record_button.config(text=f"Recording ({self.record_hotkey.upper()})" if self.recording 
@@ -360,6 +419,20 @@ class MacroRecorder:
                                  ('disabled', '#cccccc')],
                      foreground=[('active', '#ffffff'),
                                  ('disabled', '#666666')])
+
+        self.style.configure('RecordHotkey.TButton', 
+                           background='#ff4d4d', 
+                           foreground='#ffffff')
+        self.style.map('RecordHotkey.TButton',
+                     background=[('active', '#cc0000')],
+                     foreground=[('active', '#ffffff')])
+        
+        self.style.configure('PlayHotkey.TButton', 
+                           background='#32cd32', 
+                           foreground='#ffffff')
+        self.style.map('PlayHotkey.TButton',
+                     background=[('active', '#008000')],
+                     foreground=[('active', '#ffffff')])
         
         self.style.configure('Update.TButton', 
                            background=self.update_button_color, 
@@ -367,9 +440,21 @@ class MacroRecorder:
         self.style.map('Update.TButton',
                      background=[('active', self.update_button_color)],
                      foreground=[('active', '#ffffff')])
+        
+        self.style.configure('SaveHotkey.TButton',
+                           background=self.update_button_color,
+                           foreground='#ffffff')
+        self.style.map('SaveHotkey.TButton',
+                     background=[('active', self.update_button_color)],
+                     foreground=[('active', '#ffffff')])
+
+        self.style.configure('Close.TButton', background='#0078d7', foreground='#ffffff')
+        self.style.map('Close.TButton',
+                     background=[('active', '#005a9e')],
+                     foreground=[('active', '#ffffff')])
 
         self.root.configure(background=self.bg_color)
-        
+
         if hasattr(self, 'about_window') and self.about_window.winfo_exists():
             self.update_about_window_styles()
         if hasattr(self, 'donation_window') and self.donation_window.winfo_exists():
@@ -416,31 +501,6 @@ class MacroRecorder:
     def toggle_loop_infinite(self) -> None:
         self.loop_infinite = self.loop_infinite_var.get()
         self.loop_entry.config(state='disabled' if self.loop_infinite else 'normal')
-
-    def on_press(self, key: Any) -> None:
-        try:
-            current_key = self.get_key_string(key)
-            if not current_key:
-                return
-
-            is_hotkey = False
-            if current_key == self.record_hotkey:
-                self.toggle_recording()
-                is_hotkey = True
-            elif current_key == self.play_hotkey:
-                self.toggle_playing()
-                is_hotkey = True
-
-            if self.recording and not is_hotkey:
-                current_time = time()
-                if self.last_time == 0.0:
-                    self.last_time = current_time
-                delay = current_time - self.last_time
-                self.events.append(("key_press", key, delay))
-                self.last_time = current_time
-                logging.debug(f"Recorded key press: {key}, delay: {delay}, total events: {len(self.events)}")
-        except Exception as e:
-            logging.error(f"Key handling error: {e}")
 
     def on_click(self, x: int, y: int, button: mouse.Button, pressed: bool) -> None:
         if self.recording:
@@ -526,6 +586,27 @@ class MacroRecorder:
         count = 0
         mouse_controller = mouse.Controller()
         keyboard_controller = keyboard.Controller()
+
+        # Create progress bar only if not infinite loop
+        if not self.loop_infinite:
+            # Shadow Frame
+            shadow_frame = ttk.Frame(self.root, style="Shadow.TFrame", padding=(2, 2, 4, 4))
+            shadow_frame.pack(pady=5)
+
+            style = ttk.Style()
+            style.configure("Custom.Horizontal.TProgressbar",
+                            background="darkorange",
+                            troughcolor="lightgray",
+                            bordercolor="gray")
+
+            progress_bar = ttk.Progressbar(shadow_frame, orient=tk.HORIZONTAL, length=200, mode='determinate', style="Custom.Horizontal.TProgressbar")
+            progress_bar.pack()
+            progress_bar['maximum'] = len(self.events) * loop_count
+            progress_counter = 0
+
+            # Shadow style
+            self.style.configure("Shadow.TFrame", background="#a9a9a9")
+
         try:
             while self.playing and (self.loop_infinite or count < loop_count):
                 for event in self.events:
@@ -533,7 +614,7 @@ class MacroRecorder:
                         break
                     adjusted_delay = event[-1] / speed_factor
                     sleep(adjusted_delay)
-                    
+
                     if event[0] == "click":
                         x, y, button, pressed = event[1], event[2], event[3], event[4]
                         mouse_controller.position = (x, y)
@@ -548,12 +629,22 @@ class MacroRecorder:
                         key = event[1]
                         keyboard_controller.press(key)
                         keyboard_controller.release(key)
+
+                    # Update progress bar only if not infinite loop
+                    if not self.loop_infinite:
+                        progress_counter += 1
+                        progress_bar['value'] = progress_counter
+                        self.root.update_idletasks()
+
                 if not self.loop_infinite:
                     count += 1
         except Exception as e:
             logging.error(f"Playback error: {e}")
             messagebox.showerror("Playback Error", f"An error occurred: {e}")
         finally:
+            # Hide progress bar if it was created
+            if not self.loop_infinite and 'progress_bar' in locals():
+                shadow_frame.pack_forget()
             self.playing = False
             self.root.after(0, lambda: [
                 self.play_button.config(style='Play.TButton'),
@@ -613,17 +704,18 @@ class MacroRecorder:
         y = self.root.winfo_y() + (self.root.winfo_height() - 200) // 2
         self.about_window.geometry(f"+{x}+{y}")
 
-        ttk.Label(self.about_window, text=f"Macro Recorder v{__version__}", font=('Helvetica', 12, 'bold'), 
+        ttk.Label(self.about_window, text=f"Macro Recorder v{__version__}", font=('Helvetica', 12, 'bold'),
                  background=self.bg_color, foreground=self.fg_color).pack(pady=10)
-        ttk.Label(self.about_window, text="Created by V4mpw0L", 
+        ttk.Label(self.about_window, text="Created by V4mpw0L",
                  background=self.bg_color, foreground=self.fg_color).pack(pady=5)
 
-        link = tk.Label(self.about_window, text="GitHub Repository", fg=self.link_color, 
+        link = tk.Label(self.about_window, text="GitHub Repository", fg=self.link_color,
                        cursor="hand2", background=self.bg_color)
         link.pack(pady=5)
         link.bind("<Button-1>", lambda e: webbrowser.open("https://github.com/V4mpw0L/MacroRecorder"))
 
-        ttk.Button(self.about_window, text="Close", command=self.about_window.destroy).pack(pady=10)
+        # Apply the Close.TButton style
+        ttk.Button(self.about_window, text="Close", command=self.about_window.destroy, style='Close.TButton').pack(pady=10)
 
     def show_donation(self) -> None:
         self.donation_window = tk.Toplevel(self.root)
@@ -651,7 +743,8 @@ class MacroRecorder:
         ttk.Label(self.donation_window, text="Click to copy address", background=self.bg_color,
                  foreground=self.fg_color).pack(pady=5)
 
-        ttk.Button(self.donation_window, text="Close", command=self.donation_window.destroy).pack(pady=10)
+        # Apply the Close.TButton style
+        ttk.Button(self.donation_window, text="Close", command=self.donation_window.destroy, style='Close.TButton').pack(pady=10)
 
     def copy_to_clipboard(self, text: str) -> None:
         self.root.clipboard_clear()
